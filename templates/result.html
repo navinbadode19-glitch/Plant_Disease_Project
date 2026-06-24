@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analysis Result — AgriGuard AI</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        /* ── Reset & Layout ─────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --green-dark:   #1b4332;
+            --green-mid:    #2d6a4f;
+            --green-acc:    #40916c;
+            --green-light:  #d8f3dc;
+            --bg:           #f4f7f5;
+            --card:         rgba(255,255,255,0.96);
+            --border:       rgba(64,145,108,0.15);
+            --chat-bg:      #1b2e25;
+            --text:         #1b2e25;
+            --muted:        #5e7066;
+            --font-h:       'Outfit', sans-serif;
+            --font-b:       'Inter', sans-serif;
+        }
+
+        html, body {
+            height: 100vh !important;
+            width: 100vw !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: block !important;
+            font-family: var(--font-b);
+            background: var(--bg) !important;
+            overflow: hidden !important;
+        }
+
+        /* ── Two-panel split ────────────────────────────── */
+        .split-root {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ── Left: Results panel ────────────────────────── */
+        .results-panel {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .results-panel::-webkit-scrollbar { width: 5px; }
+        .results-panel::-webkit-scrollbar-track { background: transparent; }
+        .results-panel::-webkit-scrollbar-thumb {
+            background: rgba(64,145,108,0.3);
+            border-radius: 4px;
+        }
+
+        /* Top nav */
+        .results-nav {
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            padding: 0.85rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            flex-shrink: 0;
+        }
+
+        .results-nav a {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .results-nav a:hover { color: var(--green-acc); }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: var(--font-h);
+            font-weight: 700;
+            color: var(--green-dark);
+            font-size: 1rem;
+        }
+
+        .results-body {
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        /* Cards */
+        .r-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.25rem;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+
+        .r-card.sev-high   { border-left: 4px solid #e63946; }
+        .r-card.sev-medium { border-left: 4px solid #f4a261; }
+        .r-card.sev-low    { border-left: 4px solid #40916c; }
+
+        .r-card h5 {
+            font-family: var(--font-h);
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.65rem;
+            margin-bottom: 0.85rem;
+        }
+
+        /* Image card */
+        .image-diagnosis {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+
+        .diag-img {
+            width: 160px;
+            height: 140px;
+            object-fit: cover;
+            border-radius: 12px;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .diag-info { flex: 1; }
+
+        .diag-info .disease-label {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 1px;
+        }
+
+        .diag-info h2 {
+            font-family: var(--font-h);
+            font-size: 1.3rem;
+            color: var(--green-dark);
+            margin: 0.2rem 0 0.5rem;
+        }
+
+        /* Severity badge */
+        .sev-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 0.6rem;
+        }
+
+        .sev-badge.high   { background: rgba(230,57,70,0.1);  color: #e63946; }
+        .sev-badge.medium { background: rgba(244,162,97,0.12); color: #d4650e; }
+        .sev-badge.low    { background: rgba(64,145,108,0.1);  color: #40916c; }
+
+        /* Urgency Colors */
+        .color-urgency-high   { color: #e63946; }
+        .color-urgency-medium { color: #d4650e; }
+        .color-urgency-low    { color: var(--green-acc); }
+
+        /* Confidence bar */
+        .conf-bar-wrap {
+            background: rgba(64,145,108,0.1);
+            border-radius: 20px;
+            height: 8px;
+            overflow: hidden;
+            margin-top: 0.35rem;
+        }
+
+        .conf-bar-fill {
+            height: 100%;
+            border-radius: 20px;
+            background: linear-gradient(90deg, var(--green-acc), var(--green-dark));
+            transition: width 1.2s ease;
+        }
+
+        /* Stats row */
+        .stats-row {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .stat-box {
+            flex: 1;
+            background: rgba(64,145,108,0.05);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 0.85rem;
+            text-align: center;
+        }
+
+        .stat-box .stat-val {
+            font-family: var(--font-h);
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--green-dark);
+        }
+
+        .stat-box .stat-lbl {
+            font-size: 0.7rem;
+            color: var(--muted);
+            font-weight: 500;
+            margin-top: 2px;
+        }
+
+        /* Info sub-cards */
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        .info-sub {
+            background: rgba(64,145,108,0.04);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.85rem;
+        }
+
+        .info-sub.full { grid-column: 1 / -1; }
+
+        .info-sub .sub-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 0.4rem;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .info-sub.chemical  .sub-label { color: #028090; }
+        .info-sub.organic   .sub-label { color: #2a9d8f; }
+        .info-sub.prevent   .sub-label { color: #264653; }
+        .info-sub.symptoms  .sub-label { color: var(--green-acc); }
+        .info-sub.cause     .sub-label { color: #6c584c; }
+
+        .info-sub p, .info-sub li {
+            font-size: 0.8rem;
+            color: var(--muted);
+            line-height: 1.55;
+            margin: 0;
+        }
+
+        /* Timeline */
+        .timeline-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .timeline-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.6rem;
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+
+        .timeline-list li::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: var(--green-acc);
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-top: 5px;
+        }
+
+        /* ── Divider ─────────────────────────────────────── */
+        .split-divider {
+            width: 1px;
+            background: var(--border);
+            flex-shrink: 0;
+        }
+
+        /* ── Right: Chat panel ───────────────────────────── */
+        .chat-panel {
+            position: relative !important;
+            bottom: auto !important;
+            right: auto !important;
+            opacity: 1 !important;
+            pointer-events: all !important;
+            transform: none !important;
+            z-index: auto !important;
+            width: 400px !important;
+            max-height: none !important;
+            height: 100% !important;
+            flex-shrink: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            background: #fff !important;
+            overflow: hidden !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            border: none !important;
+            border-left: 1px solid var(--border) !important;
+        }
+
+        /* Chat top bar */
+        .chat-topbar {
+            background: var(--chat-bg);
+            padding: 0.9rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            flex-shrink: 0;
+        }
+
+        .chat-topbar .bot-avatar {
+            width: 36px; height: 36px;
+            background: linear-gradient(135deg, var(--green-mid), var(--green-acc));
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem;
+        }
+
+        .chat-topbar h4 {
+            font-family: var(--font-h);
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #fff;
+            margin: 0;
+        }
+
+        .chat-topbar p {
+            font-size: 0.68rem;
+            color: rgba(255,255,255,0.55);
+            margin: 0;
+        }
+
+        .topbar-dot {
+            width: 8px; height: 8px;
+            background: #52e04f;
+            border-radius: 50%;
+            margin-left: auto;
+            animation: blink 2s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.3; }
+        }
+
+        /* Lang selector strip */
+        .lang-strip {
+            background: rgba(27,46,37,0.96);
+            padding: 0.5rem 0.75rem;
+            display: flex;
+            gap: 5px;
+            overflow-x: auto;
+            flex-shrink: 0;
+        }
+
+        .lang-strip::-webkit-scrollbar { height: 3px; }
+        .lang-strip::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); }
+
+        .lang-btn {
+            padding: 0.25rem 0.6rem;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.15);
+            background: transparent;
+            color: rgba(255,255,255,0.55);
+            font-size: 0.7rem;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: var(--font-b);
+        }
+
+        .lang-btn.active, .lang-btn:hover {
+            background: rgba(64,145,108,0.35);
+            border-color: rgba(64,145,108,0.5);
+            color: #d8f3dc;
+        }
+
+        /* Messages */
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+            background: var(--bg);
+        }
+
+        .chat-messages::-webkit-scrollbar { width: 4px; }
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: rgba(64,145,108,0.2);
+            border-radius: 3px;
+        }
+
+        /* Context card at top of chat */
+        .ctx-card {
+            background: linear-gradient(135deg, rgba(64,145,108,0.08), rgba(27,67,50,0.04));
+            border: 1px solid rgba(64,145,108,0.2);
+            border-radius: 12px;
+            padding: 0.75rem;
+            display: flex;
+            gap: 0.6rem;
+            align-items: center;
+        }
+
+        .ctx-card .ctx-icon {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, var(--green-mid), var(--green-acc));
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        .ctx-card h6 {
+            font-family: var(--font-h);
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--green-acc);
+            margin: 0 0 2px;
+        }
+
+        .ctx-card p {
+            font-size: 0.68rem;
+            color: var(--muted);
+            margin: 0;
+        }
+
+        /* Message bubbles */
+        .msg-row {
+            display: flex;
+            gap: 0.6rem;
+            align-items: flex-start;
+            animation: fadeUp 0.25s ease-out;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .msg-row.user { flex-direction: row-reverse; }
+
+        .m-avatar {
+            width: 28px; height: 28px;
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+
+        .msg-row.bot  .m-avatar { background: linear-gradient(135deg, var(--green-mid), var(--green-acc)); }
+        .msg-row.user .m-avatar { background: #495057; color: #fff; }
+
+        .m-bubble {
+            max-width: 82%;
+            padding: 0.65rem 0.85rem;
+            border-radius: 14px;
+            font-size: 0.8rem;
+            line-height: 1.6;
+            word-wrap: break-word;
+        }
+
+        .msg-row.bot .m-bubble {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-top-left-radius: 3px;
+            color: var(--text);
+        }
+
+        .msg-row.user .m-bubble {
+            background: linear-gradient(135deg, var(--green-mid), var(--green-dark));
+            color: #fff;
+            border-top-right-radius: 3px;
+        }
+
+        /* Typing dots */
+        .typing-row {
+            display: flex;
+            gap: 0.6rem;
+            align-items: center;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 4px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            padding: 0.55rem 0.8rem;
+            border-radius: 14px;
+            border-top-left-radius: 3px;
+        }
+
+        .typing-dots span {
+            width: 6px; height: 6px;
+            background: var(--green-acc);
+            border-radius: 50%;
+            animation: bounce 1.2s infinite;
+        }
+
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes bounce {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30%            { transform: translateY(-5px); opacity: 1; }
+        }
+
+        /* Input bar */
+        .chat-inputbar {
+            background: var(--card);
+            border-top: 1px solid var(--border);
+            padding: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .input-wrap {
+            display: flex;
+            gap: 0.5rem;
+            align-items: flex-end;
+            background: var(--bg);
+            border: 1.5px solid var(--border);
+            border-radius: 14px;
+            padding: 0.55rem 0.55rem 0.55rem 0.85rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .input-wrap:focus-within {
+            border-color: var(--green-acc);
+            box-shadow: 0 0 0 3px rgba(64,145,108,0.1);
+        }
+
+        .chat-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            outline: none;
+            font-family: var(--font-b);
+            font-size: 0.83rem;
+            color: var(--text);
+            resize: none;
+            max-height: 90px;
+            line-height: 1.45;
+        }
+
+        .chat-input::placeholder { color: #adb5bd; }
+
+        .send-btn {
+            width: 34px; height: 34px;
+            background: linear-gradient(135deg, var(--green-mid), var(--green-dark));
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.2s;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            transform: scale(1.08);
+            box-shadow: 0 3px 10px rgba(27,67,50,0.3);
+        }
+
+        .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .send-btn svg { width: 16px; height: 16px; fill: #fff; }
+
+        .input-hint {
+            font-size: 0.66rem;
+            color: var(--muted);
+            text-align: center;
+            margin-top: 0.4rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 800px) {
+            .chat-panel { width: 320px !important; }
+        }
+
+        @media (max-width: 600px) {
+            .split-root { flex-direction: column !important; }
+            .chat-panel { width: 100% !important; height: 50vh !important; }
+            .results-panel { height: 50vh !important; overflow-y: auto !important; }
+            html, body { overflow: hidden !important; }
+        }
+
+        /* Hide FAB on results page to use static split sidebar layout */
+        .chat-fab {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+<div class="split-root">
+
+    <!-- ═══════════════════════════════════════════════════════
+         LEFT PANEL — Disease Results
+    ════════════════════════════════════════════════════════ -->
+    <section class="results-panel">
+
+        <!-- Top nav -->
+        <nav class="results-nav">
+            <a href="/"><i class="bi bi-arrow-left"></i> {{ _('Scan Another') }}</a>
+            <div class="nav-brand">
+                <span>🌿</span> AgriGuard AI
+            </div>
+            <div style="font-size:0.75rem; color:var(--muted); display:flex; align-items:center; gap:4px;">
+                <i class="bi bi-verify-fill" style="color:var(--green-acc);"></i> {{ _('Verified') }}
+            </div>
+        </nav>
+
+        <div class="results-body">
+
+            <!-- Diagnosis header card -->
+            <div class="r-card {% if severity == 'High' %}sev-high{% elif severity == 'Medium' %}sev-medium{% else %}sev-low{% endif %}">
+                <div class="image-diagnosis">
+                    <img src="{{ image_path }}" class="diag-img" alt="Analyzed leaf">
+                    <div class="diag-info">
+                        <div class="disease-label">{{ _('Crop') }}</div>
+                        <h2 class="text-success" style="font-size: 1.2rem; font-weight: 800; margin: 0.1rem 0 0.5rem; font-family: var(--font-h);">{{ _(crop_type) }}</h2>
+
+                        <div class="disease-label" style="margin-top: 0.5rem;">{{ _('Disease / Pest') }}</div>
+                        <h2 style="font-size: 1.45rem; margin: 0.1rem 0 0.6rem;">{{ disease_name }}</h2>
+
+                        {% if severity == "High" %}
+                            <span class="sev-badge high"><i class="bi bi-exclamation-octagon-fill"></i> {{ _('High Severity') if False else 'High Severity' }}</span>
+                        {% elif severity == "Medium" %}
+                            <span class="sev-badge medium"><i class="bi bi-exclamation-triangle-fill"></i> {{ _('Medium Severity') if False else 'Medium Severity' }}</span>
+                        {% else %}
+                            <span class="sev-badge low"><i class="bi bi-check-circle-fill"></i> {{ _('Low Severity') if False else 'Low Severity' }}</span>
+                        {% endif %}
+
+                        <div style="margin-top:0.5rem;">
+                            <div style="display:flex; justify-content:space-between; font-size:0.72rem; color:var(--muted); font-weight:600; margin-bottom:3px;">
+                                <span>{{ _('Confidence') }}</span><span style="color:var(--green-acc);">{{ confidence }}%</span>
+                            </div>
+                            <div class="conf-bar-wrap">
+                                <div class="conf-bar-fill" id="conf-bar" style="width:0%"></div>
+                            </div>
+                        </div>
+
+                        <p style="font-size:0.72rem; color:var(--muted); margin-top:0.5rem;">{{ confidence_note }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Recommendation -->
+            <div class="r-card">
+                <h5><i class="bi bi-cpu" style="color:var(--green-acc);"></i> {{ _('AI Smart Recommendation') }}
+                    {% if severity == "High" %}
+                        <span style="float:right; background:#e63946; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.65rem; font-weight:700;">URGENT</span>
+                    {% elif severity == "Medium" %}
+                        <span style="float:right; background:#f4a261; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.65rem; font-weight:700;">WARNING</span>
+                    {% else %}
+                        <span style="float:right; background:var(--green-acc); color:#fff; padding:2px 8px; border-radius:20px; font-size:0.65rem; font-weight:700;">ROUTINE</span>
+                    {% endif %}
+                </h5>
+                <p style="font-size:0.82rem; color:var(--text); line-height:1.6; margin-bottom:0.4rem;"><strong>{{ _('Urgency') }}:</strong>
+                    {% set urg_class = 'color-urgency-high' if severity == 'High' else ('color-urgency-medium' if severity == 'Medium' else 'color-urgency-low') %}
+                    <span class="{{ urg_class }}" style="font-weight:700;">{{ urgency }}</span>
+                </p>
+                <p style="font-size:0.82rem; color:var(--muted); line-height:1.6; margin:0;">{{ action }}</p>
+            </div>
+
+            <!-- Stats -->
+            <div class="stats-row">
+                <div class="stat-box">
+                    <i class="bi bi-percent" style="color:#e63946; font-size:1.3rem;"></i>
+                    <div class="stat-val">{{ crop_loss }}</div>
+                    <div class="stat-lbl">{{ _('Est. Crop Loss') }}</div>
+                </div>
+                <div class="stat-box">
+                    <i class="bi bi-clock-history" style="color:#4361ee; font-size:1.3rem;"></i>
+                    <div class="stat-val">{{ recovery_time }}</div>
+                    <div class="stat-lbl">{{ _('Recovery Est.') }}</div>
+                </div>
+            </div>
+
+            <!-- Weather Intelligence Card -->
+            <div class="r-card" style="background: linear-gradient(135deg, rgba(64,145,108,0.06), rgba(27,67,50,0.03)); border: 1px solid var(--border);">
+                <h5 style="margin-bottom: 0.75rem;"><i class="bi bi-cloud-sun" style="color:var(--green-acc);"></i> {{ _('Weather-based Risk Advisory') }}</h5>
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <div style="font-style: normal; font-size: 2.2rem;" id="res-weather-icon">☀️</div>
+                    <div>
+                        <div style="font-size: 1.1rem; font-weight: 700; color: var(--green-dark);" id="res-weather-temp">--°C</div>
+                        <div style="font-size: 0.72rem; color: var(--muted);" id="res-weather-condition">Detecting local conditions...</div>
+                    </div>
+                    <div style="margin-left: auto; text-align: right; font-size: 0.72rem; color: var(--muted);">
+                        <div>{{ _('Humidity') }}: <strong id="res-weather-humidity">--%</strong></div>
+                        <div>{{ _('Rain/Snow') }}: <strong id="res-weather-precip">--mm</strong></div>
+                    </div>
+                </div>
+                <div style="margin-top: 0.85rem; border-top: 1px dashed var(--border); padding-top: 0.75rem; font-size: 0.76rem; line-height: 1.55; color: var(--text);" id="res-weather-advisory">
+                    <div class="spinner-border spinner-border-sm text-success" role="status" style="margin-right: 4px;"></div> Analyzing local weather risks...
+                </div>
+            </div>
+
+            <!-- Clinical Pathology -->
+            <div class="r-card">
+                <h5><i class="bi bi-activity" style="color:var(--green-acc);"></i> {{ _('Clinical Pathology') }}</h5>
+                <div class="info-grid">
+                    <div class="info-sub symptoms">
+                        <div class="sub-label"><i class="bi bi-bug"></i> {{ _('Symptoms') }}</div>
+                        <p>{{ symptoms }}</p>
+                    </div>
+                    <div class="info-sub cause">
+                        <div class="sub-label"><i class="bi bi-info-circle"></i> {{ _('Probable Cause') }}</div>
+                        <p>{{ cause }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Treatment Plan -->
+            <div class="r-card">
+                <h5><i class="bi bi-capsule" style="color:var(--green-acc);"></i> {{ _('Treatment Plan') }}</h5>
+                <div class="info-grid">
+                    <div class="info-sub chemical">
+                        <div class="sub-label"><i class="bi bi-capsule"></i> {{ _('Chemical Cure') }}</div>
+                        <p><strong>{{ chemical_treatment }}</strong></p>
+                        <p style="margin-top:4px;">Dosage: {{ dosage }}</p>
+                        <p>Interval: {{ spray_interval }}</p>
+                    </div>
+                    <div class="info-sub organic">
+                        <div class="sub-label"><i class="bi bi-flower1"></i> {{ _('Organic / Alternative') }}</div>
+                        <p>{{ organic_treatment }}</p>
+                    </div>
+                    <div class="info-sub prevent full">
+                        <div class="sub-label"><i class="bi bi-shield-check"></i> {{ _('Preventive Measures') }}</div>
+                        <p>{{ prevention }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timeline -->
+            <div class="r-card" style="margin-bottom: 1.5rem;">
+                <h5><i class="bi bi-calendar3" style="color:var(--green-acc);"></i> {{ _('Recovery Timeline') }}</h5>
+                <ul class="timeline-list">
+                    {% for step in timeline %}
+                    <li>{{ step }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Divider -->
+    <div class="split-divider"></div>
+
+    <script id="disease-context-data" type="application/json">
+    {
+        "crop_type":            {{ crop_type | tojson }},
+        "disease_name":         {{ disease_name | tojson }},
+        "severity":             {{ severity | tojson }},
+        "confidence":           {{ confidence | tojson }},
+        "symptoms":             {{ symptoms | tojson }},
+        "cause":                {{ cause | tojson }},
+        "chemical_treatment":   {{ chemical_treatment | tojson }},
+        "dosage":               {{ dosage | tojson }},
+        "spray_interval":       {{ spray_interval | tojson }},
+        "organic_treatment":    {{ organic_treatment | tojson }},
+        "recovery_time":        {{ recovery_time | tojson }},
+        "prevention":           {{ prevention | tojson }}
+    }
+    </script>
+    <script>
+    const DISEASE_CTX = JSON.parse(document.getElementById('disease-context-data').textContent);
+    window.AGRIBOT_CONTEXT = DISEASE_CTX;
+    </script>
+
+    <!-- RIGHT PANEL — Chatbot static sidebar -->
+    {% include 'chatbot.html' %}
+</div>
+
+<script>
+// Set confidence bar width
+document.getElementById('conf-bar').style.width = window.AGRIBOT_CONTEXT.confidence + '%';
+
+(function () {
+    'use strict';
+    
+    // Dynamic Weather Intelligence loader for Result Page
+    const W_CODES = {
+        0: "Clear Sky", 1: "Mainly Clear", 2: "Partly Cloudy", 3: "Overcast",
+        45: "Foggy", 51: "Drizzle", 61: "Slight Rain", 63: "Moderate Rain",
+        65: "Heavy Rain", 71: "Snowfall", 80: "Rain Showers", 95: "Thunderstorm"
+    };
+    const W_ICONS = {
+        0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️", 45: "🌫️", 51: "🌧️",
+        61: "🌧️", 63: "🌧️", 65: "🌧️", 71: "❄️", 80: "🌧️", 95: "⛈️"
+    };
+
+    function loadResultWeather() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => fetchResultWeather(pos.coords.latitude, pos.coords.longitude),
+                () => fetchResultWeather(21.1458, 79.0882) // fallback
+            );
+        } else {
+            fetchResultWeather(21.1458, 79.0882);
+        }
+    }
+
+    async function fetchResultWeather(lat, lon) {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,precipitation&timezone=auto`;
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            const current = data.current;
+            
+            document.getElementById('res-weather-temp').innerText = Math.round(current.temperature_2m) + "°C";
+            document.getElementById('res-weather-condition').innerText = W_CODES[current.weather_code] || "Clear Sky";
+            document.getElementById('res-weather-icon').innerText = W_ICONS[current.weather_code] || "☀️";
+            document.getElementById('res-weather-humidity').innerText = current.relative_humidity_2m + "%";
+            document.getElementById('res-weather-precip').innerText = current.precipitation + "mm";
+            
+            fetchResultWeatherAdvisory(current.temperature_2m, current.relative_humidity_2m, current.precipitation, current.weather_code);
+        } catch {
+            document.getElementById('res-weather-condition').innerText = "Failed to load weather.";
+        }
+    }
+
+    async function fetchResultWeatherAdvisory(temp, hum, precip, code) {
+        const content = document.getElementById('res-weather-advisory');
+        try {
+            const response = await fetch('/weather_advisory', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    temperature: temp,
+                    humidity: hum,
+                    precipitation: precip,
+                    weather_code: code,
+                    crop_type: DISEASE_CTX.crop_type || 'General Crops',
+                    language: '{{ current_lang }}'
+                })
+            });
+            const data = await response.json();
+            let text = data.advisory || "Normal conditions.";
+            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            text = text.replace(/^- (.*)/gm, '<li>$1</li>');
+            if (text.includes('<li>')) text = '<ul style="margin: 4px 0 0; padding-left: 1rem;">' + text + '</ul>';
+            content.innerHTML = text;
+        } catch {
+            content.innerHTML = "Weather advisor is offline.";
+        }
+    }
+
+    // Trigger Weather Diagnostic
+    loadResultWeather();
+})();
+</script>
+
+</body>
+</html>

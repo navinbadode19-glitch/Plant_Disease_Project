@@ -1,0 +1,37 @@
+# Environments & Secrets
+.env
+.venv/
+env/
+venv/
+ENV/
+*.env
+
+# Python compilation cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Local databases & run caches
+*.db
+*.sqlite
+agri_guard.db
+
+# Large datasets
+PlantVillage/
+dataset/
+data/
+
+# User uploads folder contents (keep the uploads directory itself)
+uploads/*
+!uploads/.gitkeep
+
+# IDE and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln

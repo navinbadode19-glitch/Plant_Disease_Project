@@ -1,0 +1,379 @@
+<!-- ================================================================
+     AgriBot AI Chatbot Widget
+     Usage: add this line in your template body:
+       {# include 'chatbot.html' #}
+     Pass disease_context via window.AGRIBOT_CONTEXT JS object
+     ================================================================ -->
+
+<!-- Floating Action Button -->
+<button class="chat-fab" id="chatFab" aria-label="Open AgriBot AI Assistant" title="Open AgriBot AI">
+    <span class="chat-fab-badge" id="chatBadge">AI</span>
+    <!-- Chat Icon -->
+    <svg class="icon-chat" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
+    </svg>
+</button>
+
+<!-- Chat Panel -->
+<div class="chat-panel" id="chatPanel" role="dialog" aria-label="AgriBot AI Chat">
+
+    <!-- Header -->
+    <div class="chat-header">
+        <div class="chat-header-avatar">🌿</div>
+        <div class="chat-header-info">
+            <h4>AgriBot AI</h4>
+            <p><span class="chat-status-dot"></span>Expert Farming Assistant • Online</p>
+        </div>
+    </div>
+
+    <!-- Language Selector Bar -->
+    <div class="chat-lang-bar">
+        <label for="langSelect">🌐 Language:</label>
+        <select class="chat-lang-select" id="langSelect">
+            <option value="English" {% if current_lang == 'English' %}selected{% endif %}>🇬 English</option>
+            <option value="Hindi" {% if current_lang == 'Hindi' %}selected{% endif %}>🇮🇳 हिंदी (Hindi)</option>
+            <option value="Tamil" {% if current_lang == 'Tamil' %}selected{% endif %}>🌺 தமிழ் (Tamil)</option>
+            <option value="Telugu" {% if current_lang == 'Telugu' %}selected{% endif %}>🌾 తెలుగు (Telugu)</option>
+            <option value="Bengali" {% if current_lang == 'Bengali' %}selected{% endif %}>🌿 বাংলা (Bengali)</option>
+            <option value="Marathi" {% if current_lang == 'Marathi' %}selected{% endif %}>🏔️ मराठी (Marathi)</option>
+            <option value="Kannada" {% if current_lang == 'Kannada' %}selected{% endif %}>🌸 ಕನ್ನಡ (Kannada)</option>
+            <option value="Gujarati" {% if current_lang == 'Gujarati' %}selected{% endif %}>🎨 ગુજરાતી (Gujarati)</option>
+            <option value="Punjabi" {% if current_lang == 'Punjabi' %}selected{% endif %}>🌻 ਪੰਜਾਬੀ (Punjabi)</option>
+            <option value="Odia" {% if current_lang == 'Odia' %}selected{% endif %}>🌴 ଓଡ଼ିଆ (Odia)</option>
+            <option value="Urdu" {% if current_lang == 'Urdu' %}selected{% endif %}>🌙 اردو (Urdu)</option>
+            <option value="Malayalam" {% if current_lang == 'Malayalam' %}selected{% endif %}>🌴 മലയാളം (Malayalam)</option>
+        </select>
+    </div>
+
+    <!-- Messages -->
+    <div class="chat-messages" id="chatMessages">
+        <!-- Welcome message injected by JS -->
+    </div>
+
+    <!-- Input -->
+    <div class="chat-input-area">
+        <button class="mic-btn" id="chatMicBtn" type="button" aria-label="Voice input" title="Speak message">
+            <i class="bi bi-mic-fill"></i>
+        </button>
+        <textarea
+            class="chat-input"
+            id="chatInput"
+            placeholder="Type your question here..."
+            rows="1"
+            aria-label="Type your farming question"
+        ></textarea>
+        <button class="chat-send-btn" id="chatSendBtn" aria-label="Send message">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+            </svg>
+        </button>
+    </div>
+</div>
+
+<!-- Chatbot JavaScript -->
+<script>
+// Preload Speech Synthesis voices for compatibility (e.g. Chrome)
+if ('speechSynthesis' in window) {
+    window.speechSynthesis.getVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = function() {
+            window.speechSynthesis.getVoices();
+        };
+    }
+}
+
+// Global Speech Synthesis toggle function
+window.speakText = function(btn, text, langName) {
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+
+        if (btn.classList.contains('speaking')) {
+            btn.classList.remove('speaking');
+            btn.innerHTML = '<i class="bi bi-volume-up-fill"></i>';
+            return;
+        }
+
+        document.querySelectorAll('.tts-btn').forEach(b => {
+            b.classList.remove('speaking');
+            b.innerHTML = '<i class="bi bi-volume-up-fill"></i>';
+        });
+
+        // Strip HTML tags and metadata/icon strings
+        const cleanText = text.replace(/<[^>]*>/g, '').replace(/[🔊🔇🌿👤]/g, '').trim();
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        
+        const LANG_VOICES = {
+            "English": "en-US",
+            "Hindi": "hi-IN",
+            "Tamil": "ta-IN",
+            "Telugu": "te-IN",
+            "Bengali": "bn-IN",
+            "Marathi": "mr-IN",
+            "Kannada": "kn-IN",
+            "Gujarati": "gu-IN",
+            "Punjabi": "pa-IN",
+            "Urdu": "ur-PK",
+            "Malayalam": "ml-IN",
+            "Odia": "or-IN"
+        };
+        const langCode = LANG_VOICES[langName] || "en-US";
+        utterance.lang = langCode;
+
+        // Fetch voices and assign the matching one
+        const voices = window.speechSynthesis.getVoices();
+        const voice = voices.find(v => v.lang === langCode || v.lang.startsWith(langCode));
+        if (voice) {
+            utterance.voice = voice;
+        }
+        
+        utterance.onend = () => {
+            btn.classList.remove('speaking');
+            btn.innerHTML = '<i class="bi bi-volume-up-fill"></i>';
+        };
+        utterance.onerror = () => {
+            btn.classList.remove('speaking');
+            btn.innerHTML = '<i class="bi bi-volume-up-fill"></i>';
+        };
+
+        btn.classList.add('speaking');
+        btn.innerHTML = '<i class="bi bi-stop-fill"></i>';
+        window.speechSynthesis.speak(utterance);
+    } else {
+        alert("Speech Synthesis is not supported in this browser.");
+    }
+};
+
+(function() {
+    'use strict';
+
+    // ── DOM refs ─────────────────────────────────────────────
+    const fab          = document.getElementById('chatFab');
+    const panel        = document.getElementById('chatPanel');
+    const badge        = document.getElementById('chatBadge');
+    const messages     = document.getElementById('chatMessages');
+    const input        = document.getElementById('chatInput');
+    const sendBtn      = document.getElementById('chatSendBtn');
+    const langSelect   = document.getElementById('langSelect');
+    const micBtn       = document.getElementById('chatMicBtn');
+
+    // ── Disease context (populated by result.html via data attrs) ──
+    const diseaseContext = window.AGRIBOT_CONTEXT || {};
+
+    let isOpen   = false;
+    let isTyping = false;
+    let isRecording = false;
+
+    // ── Toggle Panel ─────────────────────────────────────────
+    fab.addEventListener('click', () => {
+        isOpen = !isOpen;
+        panel.classList.toggle('open', isOpen);
+        fab.classList.toggle('open', isOpen);
+        badge.style.display = isOpen ? 'none' : '';
+        if (isOpen) {
+            input.focus();
+            scrollToBottom();
+        }
+    });
+
+    // ── Speech Recognition (Voice Input) ─────────────────────
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        
+        const LANG_MAP = {
+            "English": "en-US",
+            "Hindi": "hi-IN",
+            "Tamil": "ta-IN",
+            "Telugu": "te-IN",
+            "Bengali": "bn-IN",
+            "Marathi": "mr-IN",
+            "Kannada": "kn-IN",
+            "Gujarati": "gu-IN",
+            "Punjabi": "pa-IN",
+            "Urdu": "ur-PK"
+        };
+
+        recognition.onstart = () => {
+            isRecording = true;
+            micBtn.classList.add('recording');
+            micBtn.innerHTML = '<i class="bi bi-mic-mute-fill"></i>';
+        };
+
+        recognition.onend = () => {
+            isRecording = false;
+            micBtn.classList.remove('recording');
+            micBtn.innerHTML = '<i class="bi bi-mic-fill"></i>';
+        };
+
+        recognition.onresult = (e) => {
+            const transcript = e.results[0][0].transcript;
+            input.value = (input.value + " " + transcript).trim();
+            input.style.height = 'auto';
+            input.style.height = Math.min(input.scrollHeight, 100) + 'px';
+        };
+
+        micBtn.addEventListener('click', () => {
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                recognition.lang = LANG_MAP[langSelect.value] || "en-US";
+                recognition.start();
+            }
+        });
+    } else {
+        micBtn.style.display = 'none';
+    }
+
+    // ── Auto-resize textarea ──────────────────────────────────
+    input.addEventListener('input', () => {
+        input.style.height = 'auto';
+        input.style.height = Math.min(input.scrollHeight, 100) + 'px';
+    });
+
+    // ── Send on Enter (Shift+Enter = new line) ────────────────
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    sendBtn.addEventListener('click', sendMessage);
+
+    // ── Render welcome message + context chip ─────────────────
+    function initChat() {
+        let welcomeText = '🌱 Namaste! I\'m <strong>AgriBot</strong>, your expert farming assistant.\n\nAsk me anything about crop diseases, fertilizers, pest control, irrigation, or general farming advice — in <strong>any language</strong>!';
+
+        addBotMessage(welcomeText);
+
+        if (diseaseContext.disease_name) {
+            // Show context chip
+            const chip = document.createElement('div');
+            chip.className = 'chat-context-chip';
+            let cropPrefix = diseaseContext.crop_type ? `${diseaseContext.crop_type} - ` : '';
+            chip.innerHTML = `🔬 Context: ${cropPrefix}${diseaseContext.disease_name} (${diseaseContext.severity} severity)`;
+            messages.appendChild(chip);
+
+            // Auto suggestion
+            setTimeout(() => {
+                let cropMsg = diseaseContext.crop_type ? `your <strong>${diseaseContext.crop_type}</strong> crop has been diagnosed with <strong>${diseaseContext.disease_name}</strong>` : `your crop has been diagnosed with <strong>${diseaseContext.disease_name}</strong>`;
+                addBotMessage(`I can see ${cropMsg}. Would you like me to explain the treatment options in more detail, or tell me your specific concern?`);
+            }, 800);
+        }
+    }
+
+    // ── Send message ──────────────────────────────────────────
+    async function sendMessage() {
+        const text = input.value.trim();
+        if (!text || isTyping) return;
+
+        const lang = langSelect.value;
+
+        // Show user bubble
+        addUserMessage(text);
+        input.value = '';
+        input.style.height = 'auto';
+
+        // Show typing indicator
+        isTyping = true;
+        sendBtn.disabled = true;
+        const typingEl = showTyping();
+        scrollToBottom();
+
+        try {
+            const resp = await fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: text,
+                    language: lang,
+                    context: diseaseContext
+                })
+            });
+
+            const data = await resp.json();
+            removeTyping(typingEl);
+            addBotMessage(data.reply || 'Sorry, I could not process your request.');
+        } catch (err) {
+            removeTyping(typingEl);
+            addBotMessage('⚠️ Connection error. Please check your internet and try again.');
+        } finally {
+            isTyping = false;
+            sendBtn.disabled = false;
+            input.focus();
+        }
+    }
+
+    // ── Message factories ─────────────────────────────────────
+    function addUserMessage(text) {
+        const wrap = document.createElement('div');
+        wrap.className = 'chat-msg user';
+        wrap.innerHTML = `
+            <div class="chat-msg-avatar">👤</div>
+            <div class="chat-bubble">
+                <span class="bubble-text">${escapeHtml(text)}</span>
+                <button class="tts-btn" onclick="speakText(this, this.previousElementSibling.innerText, langSelect.value)" title="Listen text">
+                    <i class="bi bi-volume-up-fill"></i>
+                </button>
+            </div>
+        `;
+        messages.appendChild(wrap);
+        scrollToBottom();
+    }
+
+    // Dynamic html support for bold/break elements from backend
+    function addBotMessage(html) {
+        const wrap = document.createElement('div');
+        wrap.className = 'chat-msg bot';
+        const formatted = html.replace(/\n/g, '<br>');
+        wrap.innerHTML = `
+            <div class="chat-msg-avatar">🌿</div>
+            <div class="chat-bubble">
+                <span class="bubble-text">${formatted}</span>
+                <button class="tts-btn" onclick="speakText(this, this.previousElementSibling.innerText, langSelect.value)" title="Listen text">
+                    <i class="bi bi-volume-up-fill"></i>
+                </button>
+            </div>
+        `;
+        messages.appendChild(wrap);
+        scrollToBottom();
+    }
+
+    function showTyping() {
+        const wrap = document.createElement('div');
+        wrap.className = 'chat-msg bot typing-indicator';
+        wrap.innerHTML = `
+            <div class="chat-msg-avatar">🌿</div>
+            <div class="typing-dots">
+                <span></span><span></span><span></span>
+            </div>
+        `;
+        messages.appendChild(wrap);
+        scrollToBottom();
+        return wrap;
+    }
+
+    function removeTyping(el) {
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+    }
+
+    function scrollToBottom() {
+        setTimeout(() => { messages.scrollTop = messages.scrollHeight; }, 50);
+    }
+
+    function escapeHtml(str) {
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/\n/g, '<br>');
+    }
+
+    // ── Init ──────────────────────────────────────────────────
+    initChat();
+
+})();
+</script>
