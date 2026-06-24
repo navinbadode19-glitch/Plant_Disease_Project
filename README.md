@@ -381,11 +381,7 @@ If you want to retrain the model, download the **PlantVillage** dataset:
 python app.py
 ```
 
-Open your browser and navigate to: **http://127.0.0.1:5000**
 
-Default credentials:
-- **Username**: `nb`
-- **Password**: `nbadmin`
 
 ### 2. Train the Model (Optional)
 
@@ -488,11 +484,7 @@ Contributions are welcome! Here's how you can help:
 
 ---
 
-## 📄 License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
-
----
 
 ## 🙏 Acknowledgements
 
