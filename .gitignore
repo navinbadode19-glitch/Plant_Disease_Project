@@ -35,3 +35,7 @@ Thumbs.db
 *.ntvs*
 *.njsproj
 *.sln
+
+# Technical presentation documents & generator scripts
+Plant_Disease_Project_Phases_1_to_5.pdf
+generate_report.py
